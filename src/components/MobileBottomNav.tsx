@@ -18,10 +18,10 @@ import {
 } from "lucide-react";
 
 const primaryItems = [
-  { name: "Chronicle", href: "/", icon: Home },
-  { name: "Characters", href: "/characters", icon: Users },
-  { name: "Stories", href: "/stories", icon: BookOpen },
+  { name: "Table", href: "/", icon: Home },
   { name: "Sessions", href: "/sessions", icon: Scroll },
+  { name: "Stories", href: "/stories", icon: BookOpen },
+  { name: "Characters", href: "/characters", icon: Users },
 ];
 
 const moreItems = [
@@ -33,6 +33,7 @@ const moreItems = [
   { name: "Import & Export", href: "/import", icon: FileDown },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
+
 
 export function MobileBottomNav() {
   const location = useLocation();
