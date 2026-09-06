@@ -47,6 +47,12 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        surface: {
+          1: "hsl(var(--surface-1))",
+          2: "hsl(var(--surface-2))",
+          3: "hsl(var(--surface-3))",
+        },
+
         // VtM Custom Colors
         'blood-red': 'hsl(var(--blood-red))',
         'blood-red-dark': 'hsl(var(--blood-red-dark))',
