@@ -83,7 +83,7 @@ export function NavRail({ pinned, onTogglePinned }: NavRailProps) {
   };
 
   return (
-    <TooltipProvider delayDuration={200} disableHoverableContent>
+    <TooltipProvider delayDuration={200}>
       <nav
         aria-label="Main navigation"
         onMouseEnter={() => setHovered(true)}
