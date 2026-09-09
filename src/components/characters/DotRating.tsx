@@ -10,9 +10,12 @@ interface DotRatingProps {
 }
 
 export function DotRating({ value, max = 5, onChange, label, className }: DotRatingProps) {
+  const safeValue = Number.isFinite(Number(value)) ? Number(value) : 0;
+  const safeMax = Number.isFinite(Number(max)) && Number(max) > 0 ? Number(max) : 5;
   const { isOnline, requireOnline } = useOnlineStatus();
   const interactive = Boolean(onChange);
   const canEdit = interactive && isOnline;
+
 
   const handleClick = (next: number) => {
     if (!onChange) return;
