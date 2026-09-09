@@ -1,100 +1,102 @@
-# Chronicle Keeper V2 — Layout and Experience Overhaul
+# Phase 2 — Sessions V2: Chronicle Journal
 
-A structural redesign built around how tabletop groups actually use a companion app: prep before a session, capture during play, and revisit afterwards. The warm gothic look stays, but evolves into a deeper, more atmospheric shell with a stronger typographic hierarchy. All art, wording and iconography stay original — no rulebook text, logos or published art.
+Phase 1 (shell) is live. This phase rebuilds Sessions — the page the original plan identified as the priority — from a records list into a chronicle journal that is easier to write during play and more rewarding to revisit afterwards.
 
-## 1. The problem with the current shape
+All schema changes are additive and follow the shared-database rules: V1 keeps working untouched.
 
-- Eleven flat sidebar links treat the dice roller and Settings as peers of the Chronicle itself. Nothing signals what matters right now.
-- Every page is the same rhythm: title, search box, vertical stack of wide cards. Lists and detail pages feel identical.
-- Sessions is the worst case — a long scroll of accordions where writing a record is a form-filling chore and re-reading it is a wall of text.
-- There is no "at the table" mode. During play a user wants dice, notes and names, not navigation.
+## Why Sessions first
 
-## 2. New navigation model
+Today, Sessions is a flat list of collapsible accordions grouped by story. Recording a session means opening a dialog and filling one long summary textarea — a chore mid-table. Re-reading means scanning walls of text. There is no "at the table" capture mode, no sense of chronicle progression, and no bridge from one session's loose ends into the next session's prep. Fixing this is the single biggest UX win in V2.
 
-Replace the flat sidebar with a three-zone shell, which is where contemporary TTRPG companions have landed (Obsidian-style rail plus contextual panel).
+## What gets built
 
-```text
-+------+---------------------------+--------------------+
-| rail |  main content             |  context drawer    |
-| 56px |                           |  (optional, 320px) |
-|      |  chronicle switcher +     |                    |
-| icon |  page header              |  quick dice        |
-| nav  |                           |  scratch notes     |
-|      |                           |  recent entities   |
-+------+---------------------------+--------------------+
+### A. Journal & Log view modes (reading)
+
+Replace the accordion list with a **timeline spine**: sessions run down a vertical thread grouped by story arc, each entry a dated node.
+
+- **Journal mode** — rich, image-forward; each session reads like a chapter. Entry shows date, title, a one-line hook, participating character portraits, an XP/consequence stamp, and the composed summary (or beats). Images render inline as a small gallery.
+- **Log mode** — dense table (date, title, story, XP, participants, status) for finding things fast. Sortable, searchable, keeps the existing search box.
+- A view-mode toggle persists per user (localStorage, like `useRestorableState`). Default to Journal.
+- Story-arc group headers stay, but render as section dividers on the spine rather than collapsible accordions.
+
+### B. Session Recorder (writing — the chore-fix)
+
+A focused capture page (`/sessions/:id/recorder` or an inline recorder panel on the detail page) with three stacked lanes, replacing the single long form for live capture:
+
+- **Beats** — short timestamped bullets you jot mid-play. One keystroke to add (Enter commits, Shift+Enter newline). Accept @mentions via the existing `MentionInput`. Each beat is its own row so you can reorder, edit, delete individually.
+- **Consequences** — things that changed: boons created/settled, deaths, status changes, location moves. Structured but quick: type + short note + optional linked entity. These are the chronicle-impact record.
+- **Loose Ends** — open threads to resolve later. On save, each loose end auto-promotes into a checklist item on the next session's prep checklist (existing `session_checklists` / `checklist_items` tables), so nothing is forgotten.
+
+On save, beats compose into the session `summary` field (newline-joined, mentions preserved). The summary remains manually editable afterward for players who prefer prose. The existing `EditSessionDialog` stays for full-field edits (title, date, XP, story, in-game dates, attachments).
+
+**Attendance** becomes a portrait picker (click character avatars to toggle presence) instead of the current dropdown, reusing `useSessionCharacters.setSessionCharacters`.
+
+### C. Session cards (delight)
+
+Each session auto-derives a **session card**: date, title, attending character portraits, XP total, and one standout beat (the first consequence, or the first beat). This card is:
+- The visual header on the Journal spine entry and the detail page.
+- Usable as the PDF cover (extends `exportSessionToPDF`).
+- Exportable as a shareable image (canvas render, optional — phase 2 stretch).
+
+### D. "Previously on…" recap
+
+On the next session's prep view (and at the top of an open session's detail page), a generated **recap block** assembles from the previous session's highlights: title, date, top beats, and any unresolved loose ends. Purely client-side assembly from existing session + beats data — no AI call required, though an optional AI-polished version can use the existing AI Gateway later.
+
+### E. Small chronicle stats
+
+A compact stats strip at the top of the Journal view: sessions played, in-game time elapsed (from earliest `in_game_date_start` to latest `in_game_date_end`), most-mentioned character (from @mention frequency across beats/summaries). Reuses `useChronicleStats` where possible.
+
+## Storage — new `session_beats` table
+
+Additive only. Matches the shape in the original plan:
+
+```sql
+create table public.session_beats (
+  id uuid primary key default gen_random_uuid(),
+  session_id uuid not null references public.sessions(id) on delete cascade,
+  chronicle_id uuid not null references public.chronicles(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  kind text not null default 'beat' check (kind in ('beat','consequence','loose_end')),
+  body text not null,
+  order_index int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+grant select, insert, update, delete on public.session_beats to authenticated;
+grant all on public.session_beats to service_role;
+alter table public.session_beats enable row level security;
+
+-- chronicle-scoped RLS, identical shape to existing entity policies
+create policy "Owner can manage session beats"
+  on public.session_beats for all
+  to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
 ```
 
-- **Icon rail (always visible, expands on hover/pin):** grouped into three bands.
-  - *Chronicle*: Dashboard, Stories, Sessions, Timeline
-  - *World*: Characters, Relationships, Locations, Factions/Coteries
-  - *Tools*: Dice, Generator, Import & Export, Settings
-- **Chronicle switcher** moves out of Settings into the rail head, so the active chronicle is always visible and swappable.
-- **Context drawer** (toggled with `\`` or a rail button): a persistent side panel holding the dice roller, a scratch pad and recently-viewed entities. This is the "at the table" surface — it works on any page without losing your place.
-- **Mobile:** keep the bottom nav but reduce to four (Dashboard, Characters, Sessions, More) and add a floating action button whose action is route-aware, reusing the existing `N` shortcut logic. The context drawer becomes a swipe-up sheet.
+A new `useSessionBeats` hook built on `useEntityCrud`, scoped to a session, with reorder support (mirrors `reorderSessions`). Loose-end promotion writes into `checklist_items` via the existing `useChecklists` API.
 
-## 3. Page structure changes
+`src/integrations/supabase/types.ts` is regenerated/extended to include `session_beats`.
 
-- **Dashboard becomes a "Table" view:** next session card (date, prep checklist progress, participating characters), active stories, open threads, recent activity. Currently it is a stats grid; V2 leads with what to do next.
-- **List pages get a consistent two-pane option on wide screens:** filter/list on the left, preview on the right, with the existing detail routes still working for deep links. Cards get a compact density toggle.
-- **Detail pages** gain a right-hand meta column (relationships, appearances, linked stories) so the main column is pure prose.
+## What stays unchanged
 
-## 4. Sessions — the priority rebuild
+- Existing routes (`/sessions`, `/sessions/:id`), `EditSessionDialog`, `CreateSessionDialog`, PDF export, offline guards, draft autosave, search, and the `data-shortcut="new"` FAB trigger all carry over.
+- The detail route `/sessions/:id` remains; it gains the recorder + recap + session card, but deep links keep working.
+- V1 reads the same `sessions` table; the new `session_beats` table is invisible to V1.
 
-Recast Sessions from a records list into a **chronicle journal**.
+## Build order (reviewable checkpoints)
 
-**Reading**
-- Timeline spine layout: sessions run down a vertical thread grouped by story arc, each entry a dated node with a title, a one-line hook, participating character portraits and an XP/consequence stamp.
-- Two view modes: *Journal* (rich, image-forward, reads like a story so far) and *Log* (dense table for finding things fast).
-- A generated "Previously on…" recap block at the top of the next session's prep, assembled from the last session's highlights.
+1. **Storage + hook** — `session_beats` migration, `useSessionBeats` hook, types update. No UI yet; verify with a query.
+2. **Session Recorder** — the three-lane capture UI on the detail page, beats CRUD, consequence + loose-end lanes, loose-end → checklist promotion, portrait attendance picker. Summary composition on save.
+3. **Journal & Log views** — timeline spine, view-mode toggle, story-arc dividers, session cards as spine entries, chronicle stats strip. Replaces the accordion list on `/sessions`.
+4. **Recap block + PDF cover** — "Previously on…" assembly, session-card PDF cover.
 
-**Writing (the chore-fix)**
-- Replace the single long form with a **Session Recorder**: a focused, distraction-light page with three stacked capture lanes — *Beats* (short timestamped bullets you jot mid-play), *Consequences* (things that changed: boons, deaths, status, locations), and *Loose Ends* (auto-promoted into the next session's prep checklist).
-- Beats accept @mentions and are one-keystroke to add, so recording during play is realistic.
-- On save, beats compose into the session summary; the existing summary field remains editable for those who prefer prose.
-- Attendance is a portrait picker rather than a dropdown list.
+Each checkpoint leaves the app fully usable; the old accordion list is only retired once the Journal view reaches parity in step 3.
 
-**Delight**
-- Each session gets an auto-derived "session card" — date, title, attending characters, XP, a standout beat — usable as the PDF cover and as a shareable image.
-- Small chronicle stats: sessions played, in-game time elapsed, most-mentioned character.
+## Is this V2-worthy?
 
-## 5. Visual evolution
+Sessions is where players spend the most app time and where V1 hurts most. A journal that is fast to write at the table, reads like a story afterwards, and carries loose ends forward into prep is the core differentiator that makes this feel like a new generation rather than a reskin. Phases 3–4 (Dashboard "Table" view, two-pane lists, detail meta columns) round out the shell, but Sessions V2 is the heart of the upgrade.
 
-Same palette family, more depth:
-- Layered surfaces: three elevation tiers instead of the current single card treatment, using existing tokens plus two new surface tokens.
-- Sharper type scale: display Cinzel for page titles only, tighter body measure (max ~68ch) so prose is readable.
-- Restrained ornament: hairline rules, corner marks and a subtle vignette on the shell background rather than decorative art.
-- Motion: 150–200ms crossfades on route change, drawer slide, and a single accent pulse when a beat is captured.
+## Open question for you
 
-## 6. Delivery phases
-
-1. **Shell** — rail nav, chronicle switcher, context drawer, mobile bottom nav trim, surface/type token evolution. All existing pages keep working inside the new shell.
-2. **Sessions V2** — journal/log views, Session Recorder, session cards, recap block.
-3. **Dashboard "Table" view** and list-page two-pane + density toggle.
-4. **Detail page meta column** and consistency sweep across remaining pages.
-
-Each phase ends in a reviewable state; nothing is removed until its replacement is live.
-
-## Technical notes
-
-- New `AppShell` composed of `NavRail`, `ContextDrawer` and the existing `Layout` responsibilities; `Navigation.tsx` is retired once the rail reaches parity. Drawer open/pin state persists via the existing `useRestorableState` pattern.
-- Session beats need storage: a `session_beats` table (id, session_id, chronicle_id, kind: beat/consequence/loose_end, body, order_index, created_at) with GRANTs, RLS scoped to the owning chronicle, and a `useEntityCrud`-based hook to match existing entity patterns.
-- Loose ends promote into the existing `checklists` tables rather than a new mechanism.
-- New surface/elevation tokens added to `index.css` and `tailwind.config.ts`; `mem://design/tokens` updated in the same phase.
-- Existing routes, detail pages, keyboard shortcuts, offline guards, draft autosave and PDF export all carry over unchanged.
-
-## 7. Delivery as a separate project (decided)
-
-V2 will be a **separate Lovable project** sharing V1's Supabase database, so kindred-chronicle-scribe stays available and untouched.
-
-**One manual step is yours — I cannot create a new project from inside this one:**
-
-1. In this project: click the project name (top left) → Settings → **Remix this project**. Remix copies the full codebase into a new project in your workspace. (The GitHub connection is a valid alternative — you could create a new project from that repo — but Remix is the one-click path and does not depend on the repo being fully in sync.)
-2. In the new project: connect it to the **same external Supabase project** (ref `ffnqzcmzuofzzodufsbm`) via the Supabase integration, using the shared-database approach we agreed.
-3. Open a chat in the new project and we start Phase 1 (shell) there.
-
-**Rules for the shared database:**
-- V1 and V2 read/write identical chronicle data. New schema V2 needs (e.g. `session_beats`) is additive only — no renames, no drops, no type changes to existing tables — so V1 never breaks.
-- V2's new tables get GRANTs + chronicle-scoped RLS identical in shape to existing tables.
-- Destructive schema changes stay off-limits unless both apps are updated in the same step.
-
-**Working agreement:** after the remix, all V2 work happens in the new project. This V1 project then only receives critical fixes (if any) until you retire it.
+Loose-end promotion target: should each loose end become a **checklist item on an existing prep checklist** for the next session (if one exists), or always **create a fresh "Loose Ends" checklist** so they're grouped and never mixed with manual prep items? My recommendation is the dedicated "Loose Ends" checklist — cleaner, and you can still merge manually.
