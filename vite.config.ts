@@ -6,7 +6,7 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const base = mode === "production" ? "/chronicle/" : "/";
+  const base = mode === "production" ? "/chronicle-v2/" : "/";
 
   return {
     base,
