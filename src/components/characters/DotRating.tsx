@@ -27,25 +27,26 @@ export function DotRating({ value, max = 5, onChange, label, className }: DotRat
     <div className={cn("flex items-center gap-2", className)}>
       {label && <span className="text-sm text-muted-foreground min-w-[80px]">{label}</span>}
       <div className="flex gap-1">
-        {Array.from({ length: max }, (_, i) => (
+        {Array.from({ length: safeMax }, (_, i) => (
           <button
             key={i}
             type="button"
             disabled={!canEdit}
-            onClick={() => handleClick(i + 1 === value ? 0 : i + 1)}
+            onClick={() => handleClick(i + 1 === safeValue ? 0 : i + 1)}
             title={interactive && !isOnline ? "You're offline — reconnect to make changes" : undefined}
             className={cn(
               "h-4 w-4 rounded-full border-2 transition-colors",
-              i < value
+              i < safeValue
                 ? "bg-primary border-primary"
                 : "bg-transparent border-muted-foreground/40",
               canEdit && "cursor-pointer hover:border-primary/70",
               !canEdit && "cursor-default",
               interactive && !isOnline && "opacity-60"
             )}
-            aria-label={`${i + 1} of ${max}`}
+            aria-label={`${i + 1} of ${safeMax}`}
           />
         ))}
+
       </div>
     </div>
   );
