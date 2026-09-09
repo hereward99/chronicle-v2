@@ -101,9 +101,11 @@ export function getClanDisciplines(clan: string): string[] {
 }
 
 export function isInClanDiscipline(clan: string, discipline: string): boolean | null {
+  if (!clan || !discipline) return null;
   if (clan === "Human" || clan === "Ghoul") return null;
   if (clan === "Caitiff") return null; // No affinity
   const inClan = CLAN_DISCIPLINES[clan];
   if (!inClan) return null;
   return inClan.some(d => d.toLowerCase() === discipline.toLowerCase());
 }
+

@@ -10,6 +10,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { HelpCircle, Droplet, Download, Dices, X, BookOpen, Calendar, Skull, Brain, Crosshair } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getClanData, isInClanDiscipline } from "@/lib/v5/clanData";
+import { normalizeCharacter } from "@/lib/v5/normalizeCharacter";
+
 import { getBloodPotencyEffects, getMaxBloodPotency } from "@/lib/v5/bloodPotencyData";
 import { getPredatorTypeData } from "@/lib/v5/predatorTypeData";
 import { QuickRollButton } from "@/components/dice/QuickRollButton";
@@ -308,14 +310,16 @@ const DicePoolsDisplay = ({ dicePools }: { dicePools: DicePoolConfig }) => {
 };
 
 export function CharacterSheetView({ character }: CharacterSheetViewProps) {
+  const safeCharacter = normalizeCharacter(character);
   return (
     <TooltipProvider>
       <div className="space-y-6">
-        <CharacterSheetContent character={character} />
+        <CharacterSheetContent character={safeCharacter} />
       </div>
     </TooltipProvider>
   );
 }
+
 
 function CharacterSheetContent({ character }: CharacterSheetViewProps) {
   const [lightboxImage, setLightboxImage] = useState<{ url: string; name: string } | null>(null);
