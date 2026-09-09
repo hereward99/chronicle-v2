@@ -179,7 +179,7 @@ export function normalizeCharacter(character: Character): Character {
     skills: normalizeSkills(character.skills),
     disciplines: normalizeDisciplines(character.disciplines),
     powers: normalizePowers(character.powers),
-    advantages: normalizeNamedList(character.advantages),
+    advantages: normalizeNamedList(character.advantages).map(a => ({ ...a, type: a.type ?? "" })),
     flaws: normalizeNamedList(character.flaws),
     loresheets: normalizeLoresheets(character.loresheets),
     convictions: normalizeStringList(character.convictions),
