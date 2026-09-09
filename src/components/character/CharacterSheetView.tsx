@@ -308,14 +308,16 @@ const DicePoolsDisplay = ({ dicePools }: { dicePools: DicePoolConfig }) => {
 };
 
 export function CharacterSheetView({ character }: CharacterSheetViewProps) {
+  const safeCharacter = normalizeCharacter(character);
   return (
     <TooltipProvider>
       <div className="space-y-6">
-        <CharacterSheetContent character={character} />
+        <CharacterSheetContent character={safeCharacter} />
       </div>
     </TooltipProvider>
   );
 }
+
 
 function CharacterSheetContent({ character }: CharacterSheetViewProps) {
   const [lightboxImage, setLightboxImage] = useState<{ url: string; name: string } | null>(null);
