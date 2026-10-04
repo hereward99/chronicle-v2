@@ -775,6 +775,39 @@ export type Database = {
         }
         Relationships: []
       }
+      session_beats: {
+        Row: {
+          body: string
+          chronicle_id: string
+          created_at: string
+          id: string
+          kind: string
+          order_index: number
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          chronicle_id: string
+          created_at?: string
+          id?: string
+          kind?: string
+          order_index?: number
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          chronicle_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          order_index?: number
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       session_characters: {
         Row: {
           character_id: string
