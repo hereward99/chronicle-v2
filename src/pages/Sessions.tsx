@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { EmptyState } from "@/components/onboarding/EmptyState";
 import { ChronicleDate } from "@/components/ChronicleDate";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import {
 } from "@/components/ui/entity-card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Calendar, Loader2, FileText, Download, BookOpen, ChevronDown, ChevronRight, Pencil, ClipboardList, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Search, Calendar, Loader2, FileText, Download, BookOpen, ChevronDown, ChevronRight, Pencil, ClipboardList, Trash2, ArrowUp, ArrowDown, ScrollText } from "lucide-react";
 
 import { CreateSessionDialog } from "@/components/dialogs/CreateSessionDialog";
 import { EditSessionDialog } from "@/components/dialogs/EditSessionDialog";
@@ -127,7 +128,7 @@ const Sessions = () => {
     <EntityCard key={session.id} entityId={session.id}>
       <EntityCardHeaderBar
         leading={<Calendar className="h-5 w-5 text-primary" />}
-        title={<TextHighlight text={session.title} highlight={highlightQuery} />}
+        title={<Link to={`/sessions/${session.id}`} className="hover:text-primary hover:underline underline-offset-4"><TextHighlight text={session.title} highlight={highlightQuery} /></Link>}
         subtitle={
           <span className="inline-flex items-center gap-2 flex-wrap">
             <ChronicleDate value={session.date_played} variant="long" />
@@ -163,6 +164,9 @@ const Sessions = () => {
                 </CardIconAction>
               </>
             )}
+            <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+              <Link to={`/sessions/${session.id}`}><ScrollText className="h-3 w-3 mr-1" /> Record</Link>
+            </Button>
             <CardIconAction label="Edit session" onClick={() => setEditingSession(session)}>
               <Pencil className="h-4 w-4" />
             </CardIconAction>
