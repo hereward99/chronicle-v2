@@ -108,7 +108,7 @@ export function SessionRecorder({ session }: { session: Session }) {
     await updateSession(session.id, { summary: text });
   };
 
-  const pcs = characters.filter(c => c.character_type !== 'npc' || characterIds.includes(c.id));
+  const pcs = characters.filter(c => c.type === 'PC' || characterIds.includes(c.id));
   const looseCount = api.beats.filter(b => b.kind === 'loose_end').length;
 
   return (
@@ -133,7 +133,7 @@ export function SessionRecorder({ session }: { session: Session }) {
                 className={cn('flex items-center gap-2 rounded-full border pl-1 pr-3 py-1 text-xs transition-all',
                   on ? 'border-primary bg-primary/15 text-foreground' : 'border-border text-muted-foreground opacity-60 hover:opacity-100')}>
                 <span className="h-7 w-7 rounded-full overflow-hidden bg-surface-2 flex items-center justify-center font-display">
-                  {c.portrait_url ? <img src={c.portrait_url} alt="" className="h-full w-full object-cover" /> : c.name.charAt(0)}
+                  {c.avatar_url ? <img src={c.avatar_url} alt="" className="h-full w-full object-cover" /> : c.name.charAt(0)}
                 </span>
                 {c.name}
               </button>
