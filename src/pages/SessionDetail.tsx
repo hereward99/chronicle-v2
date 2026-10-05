@@ -12,6 +12,7 @@ import { useSessionCharacters } from "@/hooks/useSessionCharacters";
 import { EditSessionDialog } from "@/components/dialogs/EditSessionDialog";
 import { MentionText } from "@/components/mentions/MentionText";
 import { ChronicleDate } from "@/components/ChronicleDate";
+import { SessionRecorder } from "@/components/sessions/SessionRecorder";
 import { DetailPageHeader, DetailNotFound } from "@/components/DetailPageHeader";
 
 export default function SessionDetail() {
@@ -94,6 +95,8 @@ export default function SessionDetail() {
             <p className="text-sm text-muted-foreground">No participants tagged</p>
           )}
         </section>
+
+        <SessionRecorder session={session} />
 
         {images.length > 0 && (
           <section className="space-y-2">
