@@ -41,7 +41,7 @@ export function DetailPageHeader({ title, subtitle, backTo, parentLabel, actions
   const sectionLabel = parentLabel ?? SECTION_LABELS[backTo] ?? "Back";
 
   return (
-    <div className="mb-6 space-y-3 p-4 -mx-4 sm:mx-0 sm:px-0 rounded-lg bg-gradient-subtle border-l-2 border-primary/40">
+    <div className="mb-6 space-y-3 rounded-lg bg-gradient-subtle border-l-2 border-primary/40 p-4 -mx-4 sm:mx-0 sm:p-5">
       <div className="flex items-center gap-3 flex-wrap">
         <Button variant="ghost" size="sm" onClick={handleBack} className="-ml-2">
           <ArrowLeft className="h-4 w-4 mr-1" />
