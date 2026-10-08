@@ -88,7 +88,11 @@ function Lane({ kind, label, hint, icon: Icon, beats, api }: {
   );
 }
 
-export function SessionRecorder({ session }: { session: Session }) {
+export function SessionRecorder({ session, columns = false, onSummaryCompose }: {
+  session: Session;
+  columns?: boolean;
+  onSummaryCompose?: (summary: string) => void;
+}) {
   const api = useSessionBeats(session.id, session.chronicle_id);
   const { updateSession } = useSessions();
   const { characters } = useCharacters();
@@ -105,6 +109,10 @@ export function SessionRecorder({ session }: { session: Session }) {
     if (!lines.length && !cons.length) return;
     const text = [lines.join('\n'), cons.length ? `Consequences:\n${cons.join('\n')}` : ''].filter(Boolean).join('\n\n');
     if (session.summary && !window.confirm('Replace the current summary with the recorded beats?')) return;
+    if (onSummaryCompose) {
+      onSummaryCompose(text);
+      return;
+    }
     await updateSession(session.id, { summary: text });
   };
 
@@ -142,7 +150,7 @@ export function SessionRecorder({ session }: { session: Session }) {
         </div>
       </div>
 
-      <div className="grid gap-4">
+      <div className={cn('grid gap-4', columns && 'md:grid-cols-3 md:items-start')}>
         {LANES.map(l => (
           <Lane key={l.kind} {...l} beats={api.beats.filter(b => b.kind === l.kind)} api={api} />
         ))}
