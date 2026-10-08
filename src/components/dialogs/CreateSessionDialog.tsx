@@ -7,7 +7,7 @@ import { MentionInput } from "@/components/mentions/MentionInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GroupMembersPanel } from "@/components/groups/GroupMembersPanel";
 import { InGameDateInput } from "@/components/InGameDateInput";
-import { useSessions } from "@/hooks/useSessions";
+import { useSessions, Session } from "@/hooks/useSessions";
 import { useChronicles } from "@/hooks/useChronicles";
 import { usePlots } from "@/hooks/usePlots";
 import { useCharacters } from "@/hooks/useCharacters";
@@ -15,6 +15,7 @@ import { useSessionCharacters } from "@/hooks/useSessionCharacters";
 import { z } from "zod";
 import { useFormDraft } from "@/hooks/useFormDraft";
 import { DraftSavedIndicator } from "@/components/DraftSavedIndicator";
+import { SessionRecorder } from "@/components/sessions/SessionRecorder";
 
 const sessionSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(200, "Title must be less than 200 characters"),
@@ -42,6 +43,7 @@ export function CreateSessionDialog({ children }: CreateSessionDialogProps) {
     in_game_date_end: "",
   });
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<string[]>([]);
+  const [createdSession, setCreatedSession] = useState<Session | null>(null);
   
   const { createSession } = useSessions();
   const { currentChronicle, createDefaultChronicle } = useChronicles();
@@ -111,8 +113,12 @@ export function CreateSessionDialog({ children }: CreateSessionDialogProps) {
         in_game_date_end: "",
       });
       setSelectedCharacterIds([]);
-      
-      setOpen(false);
+
+      if (newSession) {
+        setCreatedSession(newSession);
+      } else {
+        setOpen(false);
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
@@ -131,7 +137,7 @@ export function CreateSessionDialog({ children }: CreateSessionDialogProps) {
     errors[field] ? <p className="text-xs text-destructive mt-1">{errors[field]}</p> : null;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setErrors({}); }}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setErrors({}); setCreatedSession(null); } }}>
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
