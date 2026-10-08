@@ -141,7 +141,24 @@ export function CreateSessionDialog({ children }: CreateSessionDialogProps) {
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent size="sm">
+      <DialogContent size={createdSession ? "lg" : "sm"}>
+        {createdSession ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-foreground">Record &ldquo;{createdSession.title}&rdquo;</DialogTitle>
+              <DialogDescription>
+                Session logged. Capture what happened now — you can always continue later from the session page.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <SessionRecorder session={createdSession} columns />
+              <div className="flex justify-end">
+                <Button onClick={() => { setCreatedSession(null); setOpen(false); }}>Done</Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
         <DialogHeader>
           <DialogTitle className="text-foreground">Log New Session</DialogTitle>
           <DialogDescription>
@@ -267,6 +284,8 @@ export function CreateSessionDialog({ children }: CreateSessionDialogProps) {
             </div>
           </div>
         </form>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
