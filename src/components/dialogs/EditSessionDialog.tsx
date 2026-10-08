@@ -13,6 +13,7 @@ import { useCharacters } from "@/hooks/useCharacters";
 import { useSessionCharacters } from "@/hooks/useSessionCharacters";
 import { z } from "zod";
 import { GroupMembersPanel, type GroupMember } from "@/components/groups/GroupMembersPanel";
+import { SessionRecorder } from "@/components/sessions/SessionRecorder";
 
 const sessionSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(200, "Title must be less than 200 characters"),
@@ -113,11 +114,11 @@ export function EditSessionDialog({ session, open, onOpenChange }: EditSessionDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle className="text-foreground">Edit Session</DialogTitle>
           <DialogDescription>
-            Update session details
+            Update details and record the session — beats, consequences and loose ends live here too
           </DialogDescription>
         </DialogHeader>
         
@@ -224,6 +225,14 @@ export function EditSessionDialog({ session, open, onOpenChange }: EditSessionDi
               maxLength={3000}
             />
             <p className="text-xs text-muted-foreground">Type @ to mention characters, stories, etc.</p>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <SessionRecorder
+              session={session}
+              columns
+              onSummaryCompose={(text) => setFormData(prev => ({ ...prev, summary: text }))}
+            />
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
