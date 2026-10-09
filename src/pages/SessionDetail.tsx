@@ -13,6 +13,7 @@ import { EditSessionDialog } from "@/components/dialogs/EditSessionDialog";
 import { MentionText } from "@/components/mentions/MentionText";
 import { ChronicleDate } from "@/components/ChronicleDate";
 import { SessionRecorder } from "@/components/sessions/SessionRecorder";
+import { PreviouslyOn } from "@/components/sessions/PreviouslyOn";
 import { DetailPageHeader, DetailNotFound } from "@/components/DetailPageHeader";
 
 export default function SessionDetail() {
@@ -56,6 +57,7 @@ export default function SessionDetail() {
       />
 
       <div className="space-y-6 max-w-4xl">
+        <PreviouslyOn session={session} sessions={sessions} />
         <ChronicleDate
           inGameStart={session.in_game_date_start}
           inGameEnd={session.in_game_date_end}
