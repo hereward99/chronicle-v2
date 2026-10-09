@@ -67,29 +67,28 @@ function drawDots(pdf: jsPDF, x: number, y: number, filled: number, max: number 
   return x + (max * spacing);
 }
 
-function createThemedPDF(options: PDFOptions): jsPDF {
-  const pdf = new jsPDF('p', 'mm', 'a4');
+function paintPageHeader(pdf: jsPDF, options: PDFOptions) {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  
+
   // Background
   pdf.setFillColor(COLORS.background.r, COLORS.background.g, COLORS.background.b);
   pdf.rect(0, 0, pageWidth, pageHeight, 'F');
-  
+
   // Header bar
   pdf.setFillColor(COLORS.card.r, COLORS.card.g, COLORS.card.b);
   pdf.rect(0, 0, pageWidth, 25, 'F');
-  
+
   // Red accent line
   pdf.setFillColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
   pdf.rect(0, 25, pageWidth, 1.5, 'F');
-  
+
   // Title
   pdf.setTextColor(COLORS.foreground.r, COLORS.foreground.g, COLORS.foreground.b);
   pdf.setFontSize(18);
   pdf.setFont('helvetica', 'bold');
   pdf.text(options.title, 15, 16);
-  
+
   // Subtitle
   if (options.subtitle) {
     pdf.setTextColor(COLORS.muted.r, COLORS.muted.g, COLORS.muted.b);
@@ -97,7 +96,11 @@ function createThemedPDF(options: PDFOptions): jsPDF {
     pdf.setFont('helvetica', 'normal');
     pdf.text(options.subtitle, pageWidth - 15, 16, { align: 'right' });
   }
-  
+}
+
+function createThemedPDF(options: PDFOptions): jsPDF {
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  paintPageHeader(pdf, options);
   return pdf;
 }
 
@@ -283,16 +286,161 @@ export function exportPlotToPDF(plot: {
   pdf.save(`${plot.title.replace(/[^a-z0-9]/gi, '_')}_story.pdf`);
 }
 
-// Export a Session to PDF
+export interface SessionCoverRecap {
+  sourceTitle: string;
+  sourceDate: string;
+  items: string[];
+  looseEnds: string[];
+  fallback?: string;
+}
+
+export interface SessionCoverOptions {
+  storyTitle?: string | null;
+  recap?: SessionCoverRecap | null;
+}
+
+function formatLongDate(value: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(value);
+  if (isNaN(d.getTime())) return value;
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+// Draws a themed title page (page 1) for a session export
+function drawSessionCover(pdf: jsPDF, session: { title: string; date_played: string }, options: SessionCoverOptions) {
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const cx = pageWidth / 2;
+  const maxWidth = pageWidth - 50;
+  const color = (c: { r: number; g: number; b: number }) => pdf.setTextColor(c.r, c.g, c.b);
+  const rule = (y: number, w: number) => {
+    pdf.setFillColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
+    pdf.rect(cx - w / 2, y, w, 0.8, 'F');
+  };
+
+  pdf.setFillColor(COLORS.background.r, COLORS.background.g, COLORS.background.b);
+  pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+  pdf.setFillColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
+  pdf.rect(0, 0, pageWidth, 3, 'F');
+  pdf.rect(0, pageHeight - 3, pageWidth, 3, 'F');
+
+  // Kicker
+  let y = 62;
+  color(COLORS.primary);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(10);
+  pdf.text('S E S S I O N   L O G', cx, y, { align: 'center' });
+  y += 8;
+  rule(y, 40);
+
+  // Title
+  y += 20;
+  color(COLORS.foreground);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(30);
+  const titleLines: string[] = pdf.splitTextToSize(session.title, maxWidth).slice(0, 4);
+  for (const line of titleLines) {
+    pdf.text(line, cx, y, { align: 'center' });
+    y += 13;
+  }
+
+  // Story + date
+  y += 2;
+  if (options.storyTitle) {
+    color(COLORS.primary);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(13);
+    const storyLines: string[] = pdf.splitTextToSize(options.storyTitle, maxWidth).slice(0, 2);
+    for (const line of storyLines) {
+      pdf.text(line, cx, y, { align: 'center' });
+      y += 7;
+    }
+  }
+  color(COLORS.muted);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(11);
+  pdf.text(formatLongDate(session.date_played), cx, y + 1, { align: 'center' });
+  y += 14;
+  rule(y, 20);
+  y += 14;
+
+  // Recap
+  const recap = options.recap;
+  if (recap) {
+    const left = 25;
+    const bottom = pageHeight - 28;
+    color(COLORS.primary);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(11);
+    pdf.text('PREVIOUSLY ON\u2026', cx, y, { align: 'center' });
+    y += 7;
+    color(COLORS.muted);
+    pdf.setFont('helvetica', 'italic');
+    pdf.setFontSize(9);
+    pdf.text(`${recap.sourceTitle} \u00b7 ${formatLongDate(recap.sourceDate)}`, cx, y, { align: 'center', maxWidth });
+    y += 9;
+
+    const writeList = (items: string[]) => {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      color(COLORS.foreground);
+      for (const item of items) {
+        const lines: string[] = pdf.splitTextToSize(stripMentions(item), maxWidth - 8);
+        if (y + lines.length * 5 > bottom) return;
+        pdf.setFillColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
+        pdf.circle(left + 1, y - 1, 0.7, 'F');
+        pdf.text(lines, left + 6, y);
+        y += lines.length * 5 + 2;
+      }
+    };
+
+    if (recap.items.length) writeList(recap.items);
+    else if (recap.fallback) {
+      pdf.setFont('helvetica', 'italic');
+      pdf.setFontSize(10);
+      color(COLORS.foreground);
+      const lines: string[] = pdf.splitTextToSize(stripMentions(recap.fallback), maxWidth).slice(0, 8);
+      pdf.text(lines, left, y);
+      y += lines.length * 5 + 2;
+    } else if (!recap.looseEnds.length) {
+      color(COLORS.muted);
+      pdf.setFont('helvetica', 'italic');
+      pdf.setFontSize(10);
+      pdf.text('No beats were recorded for that session.', cx, y, { align: 'center' });
+      y += 8;
+    }
+
+    if (recap.looseEnds.length && y < bottom - 12) {
+      y += 3;
+      color(COLORS.muted);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(9);
+      pdf.text('UNRESOLVED LOOSE ENDS', left, y);
+      y += 6;
+      writeList(recap.looseEnds);
+    }
+  }
+
+  // Footer
+  color(COLORS.muted);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8);
+  pdf.text('Kindred Chronicle Scribe', cx, pageHeight - 10, { align: 'center' });
+}
+
+// Export a Session to PDF (cover page + session log)
 export function exportSessionToPDF(session: {
   title: string;
   summary?: string | null;
   date_played: string;
   experience_awarded?: number | null;
   created_at: string;
-}, theme: PdfTheme = 'dark') {
+}, theme: PdfTheme = 'dark', cover: SessionCoverOptions = {}) {
   setPdfTheme(theme);
-  const pdf = createThemedPDF({
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  drawSessionCover(pdf, session, cover);
+  pdf.addPage();
+  paintPageHeader(pdf, {
     title: session.title,
     subtitle: 'Session Log'
   });

@@ -20,6 +20,7 @@ import { useSessions, Session } from "@/hooks/useSessions";
 import { usePlots } from "@/hooks/usePlots";
 import { useChecklists } from "@/hooks/useChecklists";
 import { exportSessionToPDF } from "@/lib/pdfExport";
+import { buildSessionCoverRecap } from "@/lib/sessionRecap";
 import { PdfExportButton } from "@/components/PdfExportButton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { MentionText } from "@/components/mentions/MentionText";
@@ -180,7 +181,13 @@ const Sessions = () => {
               variant="ghost"
               iconOnly
               toolbar
-              onExport={(theme) => exportSessionToPDF(session, theme)}
+              onExport={async (theme) => {
+                const recap = await buildSessionCoverRecap(session, sessions).catch(() => null);
+                exportSessionToPDF(session, theme, {
+                  storyTitle: plots.find(p => p.id === session.plot_id)?.title,
+                  recap,
+                });
+              }}
             />
             <CardIconAction
               label="Delete session"
