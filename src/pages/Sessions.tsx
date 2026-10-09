@@ -39,10 +39,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { SessionGroupSkeleton } from "@/components/skeletons/CardSkeleton";
 import { useRestorableState, useScrollRestore } from "@/hooks/useRestorableState";
+import { SessionJournal, SessionLog, SessionStatsStrip } from "@/components/sessions/SessionViews";
 
 const Sessions = () => {
   useScrollRestore("/sessions");
   const [searchTerm, setSearchTerm] = useRestorableState("sessions:search", "");
+  const [viewMode, setViewModeState] = useState<"journal" | "log" | "stories">(() => {
+    const v = typeof window !== "undefined" ? localStorage.getItem("sessions:viewMode") : null;
+    return v === "log" || v === "stories" ? v : "journal";
+  });
+  const setViewMode = (v: "journal" | "log" | "stories") => { setViewModeState(v); localStorage.setItem("sessions:viewMode", v); };
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["ungrouped", "checklists-ungrouped"]));
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Session | null>(null);
@@ -274,8 +280,27 @@ const Sessions = () => {
         />
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg border p-1 bg-surface-1" role="tablist" aria-label="View mode">
+          {([["journal", "Journal"], ["log", "Log"], ["stories", "By story & prep"]] as const).map(([v, label]) => (
+            <button key={v} type="button" role="tab" aria-selected={viewMode === v} onClick={() => setViewMode(v)}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${viewMode === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {!loading && sessions.length > 0 && viewMode !== "stories" && <SessionStatsStrip sessions={sessions} />}
+
+      {viewMode !== "stories" && !loading && filteredSessions.length > 0 && (
+        viewMode === "journal"
+          ? <SessionJournal sessions={filteredSessions} storyName={getStoryName} />
+          : <SessionLog sessions={filteredSessions} storyName={getStoryName} />
+      )}
+
       {/* Sessions & Checklists List - Grouped by Story */}
-      <div className="space-y-4">
+      <div className="space-y-4" hidden={viewMode !== "stories" && (loading || filteredSessions.length > 0)}>
         {(loading || checklistsLoading) ? (
           <SessionGroupSkeleton />
         ) : (filteredSessions.length > 0 || checklists.length > 0) ? (
