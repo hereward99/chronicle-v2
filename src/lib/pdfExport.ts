@@ -87,7 +87,15 @@ function paintPageHeader(pdf: jsPDF, options: PDFOptions) {
   pdf.setTextColor(COLORS.foreground.r, COLORS.foreground.g, COLORS.foreground.b);
   pdf.setFontSize(18);
   pdf.setFont('helvetica', 'bold');
-  pdf.text(options.title, 15, 16);
+  const titleMax = pageWidth - 30 - (options.subtitle ? 35 : 0);
+  let titleText = options.title;
+  if (pdf.getTextWidth(titleText) > titleMax) {
+    while (titleText.length > 1 && pdf.getTextWidth(titleText + '...') > titleMax) {
+      titleText = titleText.slice(0, -1);
+    }
+    titleText = titleText.trimEnd() + '...';
+  }
+  pdf.text(titleText, 15, 16);
 
   // Subtitle
   if (options.subtitle) {
