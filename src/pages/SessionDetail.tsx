@@ -13,6 +13,9 @@ import { EditSessionDialog } from "@/components/dialogs/EditSessionDialog";
 import { MentionText } from "@/components/mentions/MentionText";
 import { ChronicleDate } from "@/components/ChronicleDate";
 import { SessionRecorder } from "@/components/sessions/SessionRecorder";
+import { PdfExportButton } from "@/components/PdfExportButton";
+import { exportSessionToPDF } from "@/lib/pdfExport";
+import { buildSessionCoverRecap } from "@/lib/sessionRecap";
 import { PreviouslyOn } from "@/components/sessions/PreviouslyOn";
 import { DetailPageHeader, DetailNotFound } from "@/components/DetailPageHeader";
 
@@ -50,9 +53,17 @@ export default function SessionDetail() {
           </div>
         }
         actions={
-          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-            <Edit className="h-4 w-4 mr-1" /> Edit
-          </Button>
+          <>
+            <PdfExportButton
+              onExport={async (theme) => {
+                const recap = await buildSessionCoverRecap(session, sessions).catch(() => null);
+                exportSessionToPDF(session, theme, { storyTitle: plot?.title, recap });
+              }}
+            />
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+              <Edit className="h-4 w-4 mr-1" /> Edit
+            </Button>
+          </>
         }
       />
 
