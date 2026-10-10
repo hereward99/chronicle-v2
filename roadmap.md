@@ -8,3 +8,4 @@
 - [x] Phase 2 step 3: Journal & Log views on /sessions
 - [x] Phase 2 step 4a: "Previously on…" recap
 - [x] Phase 2 step 4b: session PDF cover page
+- [x] Phase 3: "Table" dashboard — last-session recap, prep & loose-ends panels, at-the-table quick actions, stats ribbon (replaces stats-card grid + activity feed)
