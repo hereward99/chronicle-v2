@@ -4,7 +4,6 @@ import {
   ArrowRight,
   BookOpen,
   Calendar,
-  Check,
   Dices,
   History,
   ListChecks,
@@ -15,7 +14,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
-import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader } from "@/components/ui/card";
 import { EntityCard, EntityCardContent, EntityCardHeaderBar, CardIconAction } from "@/components/ui/entity-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
