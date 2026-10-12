@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { CalendarDays, BookOpen, UsersRound, Flag, Tag, X } from "lucide-react";
 
 type Target = "session" | "story" | "coterie" | "faction" | "status";
@@ -40,8 +39,7 @@ export function BulkActionBar({ selectedIds, onClear, sessions, stories, coterie
   const [busy, setBusy] = useState(false);
   const qc = useQueryClient();
   const { toast } = useToast();
-  const online = useOnlineStatus();
-  const isOnline = typeof online === "boolean" ? online : (online as { isOnline?: boolean })?.isOnline ?? true;
+  const isOnline = typeof navigator === "undefined" ? true : navigator.onLine;
 
   const options = useMemo(() => {
     switch (target) {
