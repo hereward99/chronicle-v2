@@ -33,6 +33,12 @@ import { ManageFactionMembersDialog } from "@/components/dialogs/ManageFactionMe
 import { useSearchHighlight } from "@/hooks/useSearchHighlight";
 import { useRestorableState, useScrollRestore } from "@/hooks/useRestorableState";
 import type { Coterie } from "@/hooks/useCoteries";
+import { useSessions } from "@/hooks/useSessions";
+import { useSelection } from "@/hooks/useSelection";
+import { BulkActionBar } from "@/components/characters/BulkActionBar";
+import { CharacterTable } from "@/components/characters/CharacterTable";
+import { Checkbox } from "@/components/ui/checkbox";
+import { LayoutGrid, Rows3, CheckSquare } from "lucide-react";
 
 const STORAGE_KEY = "characters-toolbar-state";
 
@@ -109,6 +115,10 @@ export default function Characters() {
   const { plots } = usePlots();
   const { plotCharacters } = usePlotCharacters();
   const { highlightId, searchQuery: highlightQuery } = useSearchHighlight();
+  const { sessions } = useSessions();
+  const selection = useSelection();
+  const [viewMode, setViewMode] = useRestorableState<"grid" | "table">("characters:view", "grid");
+  const [selectMode, setSelectMode] = useState(false);
 
   // Auto-switch tab when highlighting a coterie or faction
   useEffect(() => {
@@ -269,6 +279,32 @@ export default function Characters() {
 
     return new Map([...groups.entries()].sort(([a], [b]) => a.localeCompare(b)));
   }, [sortedCharacters, toolbar.groupBy, characterCoterieMap, coteries, characterFactionMap, factions]);
+
+  const coterieNameFor = (id: string) =>
+    (characterCoterieMap.get(id) || []).map(cid => coteries.find(c => c.id === cid)?.name).filter(Boolean).join(", ");
+  const factionNameFor = (id: string) =>
+    (characterFactionMap.get(id) || []).map(fid => factions.find(f => f.id === fid)?.name).filter(Boolean).join(", ");
+
+  const renderCard = (character: Character) => {
+    const card = <CharacterCard key={character.id} character={character} highlightQuery={highlightQuery} onView={goToCharacter} onEdit={setEditCharacter} />;
+    if (!selectMode) return card;
+    const checked = selection.selected.has(character.id);
+    return (
+      <div
+        key={character.id}
+        className={`relative rounded-lg cursor-pointer ${checked ? "ring-2 ring-primary" : ""}`}
+        onClickCapture={e => { e.preventDefault(); e.stopPropagation(); selection.toggle(character.id, sortedCharacters.map(c => c.id), e.shiftKey); }}
+      >
+        <div className="absolute top-2 right-2 z-10 rounded bg-surface-2 p-1"><Checkbox checked={checked} aria-label={`Select ${character.name}`} /></div>
+        {card}
+      </div>
+    );
+  };
+
+  const statusOptions = [...new Set(["Active", "Inactive", "Missing", "Torpor", "Dead", "Destroyed", ...filterOptions.statuses])];
+  const bulkSetStatus = async (ids: string[], status: string) => {
+    for (const id of ids) await updateCharacter(id, { status });
+  };
 
   return (
     <div className="space-y-6">
@@ -531,9 +567,24 @@ export default function Characters() {
 
           {/* Results count */}
           {!loading && (
-            <p className="text-sm text-muted-foreground">
-              Showing {sortedCharacters.length} of {characters.length} characters
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-muted-foreground">
+                Showing {sortedCharacters.length} of {characters.length} characters
+                {selection.count > 0 && <> · <span className="text-foreground">{selection.count} selected</span></>}
+              </p>
+              <div className="flex items-center gap-1">
+                {(selectMode || viewMode === "table") && sortedCharacters.length > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => selection.setAll(sortedCharacters.map(c => c.id))}>Select all shown</Button>
+                )}
+                {viewMode === "grid" && (
+                  <Button variant={selectMode ? "secondary" : "ghost"} size="sm" onClick={() => { if (selectMode) selection.clear(); setSelectMode(m => !m); }}>
+                    <CheckSquare className="h-4 w-4 mr-1" />{selectMode ? "Done" : "Select"}
+                  </Button>
+                )}
+                <Button variant={viewMode === "grid" ? "secondary" : "ghost"} size="icon" aria-label="Card view" onClick={() => setViewMode("grid")}><LayoutGrid className="h-4 w-4" /></Button>
+                <Button variant={viewMode === "table" ? "secondary" : "ghost"} size="icon" aria-label="Table view" onClick={() => setViewMode("table")}><Rows3 className="h-4 w-4" /></Button>
+              </div>
+            </div>
           )}
 
           {/* Character Grid */}
@@ -541,6 +592,16 @@ export default function Characters() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => <CharacterCardSkeleton key={i} />)}
             </div>
+          ) : viewMode === "table" ? (
+            <CharacterTable
+              characters={sortedCharacters}
+              selected={selection.selected}
+              onToggle={(id, shift) => selection.toggle(id, sortedCharacters.map(c => c.id), shift)}
+              onToggleAll={checked => checked ? selection.setAll(sortedCharacters.map(c => c.id)) : selection.clear()}
+              onOpen={goToCharacter}
+              coterieNames={coterieNameFor}
+              factionNames={factionNameFor}
+            />
           ) : groupedCharacters ? (
             <div className="space-y-4">
               {[...groupedCharacters.entries()].map(([group, chars]) => (
@@ -553,7 +614,7 @@ export default function Characters() {
                   <CollapsibleContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-3">
                       {chars.map(character => (
-                        <CharacterCard key={character.id} character={character} highlightQuery={highlightQuery} onView={goToCharacter} onEdit={setEditCharacter} />
+                        renderCard(character)
                       ))}
                     </div>
                   </CollapsibleContent>
@@ -563,7 +624,7 @@ export default function Characters() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {sortedCharacters.map(character => (
-                <CharacterCard key={character.id} character={character} highlightQuery={highlightQuery} onView={goToCharacter} onEdit={setEditCharacter} />
+                renderCard(character)
               ))}
             </div>
           )}
@@ -790,6 +851,16 @@ export default function Characters() {
         </>
       )}
       <BulkNPCDialog open={showBulkNPCDialog} onOpenChange={setShowBulkNPCDialog} />
+      <BulkActionBar
+        selectedIds={[...selection.selected]}
+        onClear={() => { selection.clear(); setSelectMode(false); }}
+        sessions={sessions.map(x => ({ id: x.id, label: x.title }))}
+        stories={plots.map(p => ({ id: p.id, label: p.title }))}
+        coteries={coteries.map(c => ({ id: c.id, label: c.name }))}
+        factions={factions.map(f => ({ id: f.id, label: f.name }))}
+        statuses={statusOptions}
+        onSetStatus={bulkSetStatus}
+      />
     </div>
   );
 }

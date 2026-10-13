@@ -54,8 +54,6 @@ export function CharacterTable({ characters, selected, onToggle, onToggleAll, on
         </thead>
         <tbody>
           {rows.map(c => {
-            const ids = rows.map(r => r.id);
-            void ids;
             return (
               <tr key={c.id} className={`border-t border-border hover:bg-secondary/40 ${selected.has(c.id) ? "bg-primary/10" : ""}`}>
                 <td className="px-3 py-2" onClick={e => { e.preventDefault(); onToggle(c.id, e.shiftKey); }}>
