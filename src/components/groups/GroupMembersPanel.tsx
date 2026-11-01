@@ -4,10 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, X, Users } from "lucide-react";
+import { X, Users, Check } from "lucide-react";
 import type { Character } from "@/hooks/useCharacters";
 import { undoableAction } from "@/lib/undoableAction";
+import { CastPicker } from "@/components/cast/CastPicker";
+import { castChanges } from "@/components/cast/castSelection";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 export interface GroupMember {
   characterId: string;
@@ -53,15 +55,11 @@ export function GroupMembersPanel({
   listHeight = "h-[240px]",
   disabled = false,
 }: GroupMembersPanelProps) {
-  const [selectedCharacterId, setSelectedCharacterId] = useState<string>("");
+  const [selectedIds, setSelectedIds] = useState<string[] | null>(null);
   const [role, setRole] = useState("");
   const [busy, setBusy] = useState(false);
-
-  const memberMap = useMemo(() => {
-    const map = new Map<string, string | null | undefined>();
-    members.forEach(m => map.set(m.characterId, m.role));
-    return map;
-  }, [members]);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const { isOnline } = useOnlineStatus();
 
   const enrichedMembers = useMemo(() => {
     return members
@@ -72,18 +70,21 @@ export function GroupMembersPanel({
       .filter(Boolean) as { character: Character; role: string | null | undefined }[];
   }, [members, characters]);
 
-  const availableCharacters = useMemo(
-    () => characters.filter(c => !memberMap.has(c.id)),
-    [characters, memberMap],
-  );
+  const currentIds = members.map(member => member.characterId);
+  const draftIds = selectedIds ?? currentIds;
+  const changes = castChanges(currentIds, draftIds, characters.map(character => character.id));
 
   const handleAdd = async () => {
-    if (!selectedCharacterId) return;
+    if (!isOnline || disabled || busy) return;
     setBusy(true);
+    setSaveError(null);
     try {
-      await onAdd(selectedCharacterId, showRole ? role.trim() || undefined : undefined);
-      setSelectedCharacterId("");
+      for (const id of changes.added) await onAdd(id, showRole ? role.trim() || undefined : undefined);
+      for (const id of changes.removed) await onRemove(id);
+      setSelectedIds(null);
       setRole("");
+    } catch {
+      setSaveError("Some cast changes could not be saved. Your selection is kept; retry to finish.");
     } finally {
       setBusy(false);
     }
@@ -99,43 +100,23 @@ export function GroupMembersPanel({
   };
 
 
-  const isDisabled = disabled || busy;
+  const isDisabled = disabled || busy || !isOnline;
 
   return (
     <div className="space-y-3">
-      <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
+      <div className="space-y-3">
         <Label className="text-xs uppercase tracking-wider text-muted-foreground">
           {addLabel}
         </Label>
-        <div className="flex gap-2">
-          <Select
-            value={selectedCharacterId}
-            onValueChange={setSelectedCharacterId}
-            disabled={isDisabled || availableCharacters.length === 0}
-          >
-            <SelectTrigger className="flex-1 bg-input border-border">
-              <SelectValue
-                placeholder={
-                  availableCharacters.length === 0
-                    ? "All characters added"
-                    : "Select a character..."
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {availableCharacters.map(char => (
-                <SelectItem key={char.id} value={char.id}>
-                  {char.name} ({char.clan})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <CastPicker characters={characters} selectedIds={draftIds} onSelectionChange={setSelectedIds} disabled={isDisabled} />
+        <div className="flex flex-wrap items-center gap-2">
           {showRole && (
             <Input
               placeholder="Role (optional)"
               value={role}
               onChange={e => setRole(e.target.value)}
-              className="w-40 bg-input border-border"
+              aria-label="Role for newly added characters"
+              className="w-full sm:w-48 bg-input border-border"
               disabled={isDisabled}
             />
           )}
@@ -143,12 +124,16 @@ export function GroupMembersPanel({
             type="button"
             onClick={handleAdd}
             offlineDisabled
-            disabled={isDisabled || !selectedCharacterId}
-            size="icon"
+            disabled={isDisabled || changes.added.length + changes.removed.length === 0}
+            size="sm"
           >
-            <Plus className="h-4 w-4" />
+            <Check className="h-4 w-4" />
+            {busy ? "Applying…" : "Apply cast changes"}
           </Button>
+          {selectedIds !== null && <Button type="button" variant="ghost" size="sm" disabled={isDisabled} onClick={() => { setSelectedIds(null); setSaveError(null); }}>Reset</Button>}
+          <span className="text-xs text-muted-foreground">{changes.added.length} to add · {changes.removed.length} to remove</span>
         </div>
+        {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
       </div>
 
       <div className="space-y-2">
@@ -186,6 +171,7 @@ export function GroupMembersPanel({
                     variant="ghost"
                     size="icon"
                     offlineDisabled
+                    aria-label={`Remove ${character.name}`}
                     onClick={() => handleRemove(character.id)}
                     disabled={isDisabled}
                     className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
