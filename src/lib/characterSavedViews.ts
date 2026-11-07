@@ -57,8 +57,9 @@ export function parseCharacterViews(raw: string | null): SavedCharacterView[] {
       }
       if (!valid || !groups.includes(toolbar.groupBy) || !sorts.includes(toolbar.sortBy) ||
           !["__all__", "PC", "NPC"].includes(toolbar.filterType)) continue;
-      if (result.some(view => view.id === item.id || view.name.toLowerCase() === item.name.trim().toLowerCase())) continue;
-      result.push({ id: item.id, name: item.name.trim(), searchTerm: item.searchTerm, toolbar });
+      const name = item.name.trim();
+      if (result.some(view => view.id === item.id || view.name.toLowerCase() === name.toLowerCase())) continue;
+      result.push({ id: item.id, name, searchTerm: item.searchTerm, toolbar });
     }
     return result;
   } catch { return []; }

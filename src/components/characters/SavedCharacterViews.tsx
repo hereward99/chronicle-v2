@@ -76,7 +76,7 @@ export function SavedCharacterViews({ storageKey, snapshot, onApply }: Props) {
         const view = views.find(item => item.id === id);
         if (view) onApply({ toolbar: { ...view.toolbar }, searchTerm: view.searchTerm });
       }}>
-        <SelectTrigger aria-label="Saved character views" className="h-9 w-full min-w-0 max-w-[260px] flex-1 bg-input sm:flex-none [&>span]:truncate">
+        <SelectTrigger aria-label="Saved character views" className="h-9 w-full min-w-0 max-w-[260px] flex-1 bg-input sm:w-[260px] sm:flex-none [&>span]:truncate">
           <SelectValue placeholder="Saved views" />
         </SelectTrigger>
         <SelectContent>
