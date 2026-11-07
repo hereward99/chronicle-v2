@@ -12,6 +12,7 @@
 - [x] Phase 4a: shared cast picker in existing session, story, coterie and faction membership editors — search, clan/type/coterie filters, select all, PC shortcut, staged add/remove and optional roles; unit and isolated browser checks pass
 - [ ] Cast picker: verify saved memberships through signed-in editors (blocked: no managed browser session for the shared external backend)
 - [ ] Cast picker follow-through: faction filters, last-session/summary shortcuts and batched group persistence
-- [ ] Phase 4a: saved character filter views and two-pane preview
+- [ ] Phase 4a: saved character filter views — implement and verify save, apply, update and delete
+- [ ] Phase 4a: two-pane character preview
 - [ ] Phase 4a: bulk removal and selected-character PDF export
 - [ ] Phase 4a: Stories and Locations two-pane views

@@ -39,32 +39,14 @@ import { BulkActionBar } from "@/components/characters/BulkActionBar";
 import { CharacterTable } from "@/components/characters/CharacterTable";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LayoutGrid, Rows3, CheckSquare } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { SavedCharacterViews } from "@/components/characters/SavedCharacterViews";
+import { characterViewsKey, defaultCharacterToolbar, type CharacterToolbarState } from "@/lib/characterSavedViews";
 
 const STORAGE_KEY = "characters-toolbar-state";
 
-interface ToolbarState {
-  filterType: string;
-  filterClan: string;
-  filterStatus: string;
-  filterCoterie: string;
-  filterFaction: string;
-  filterStory: string;
-  filterSire: string;
-  groupBy: string;
-  sortBy: string;
-}
-
-const defaultState: ToolbarState = {
-  filterType: "__all__",
-  filterClan: "__all__",
-  filterStatus: "__all__",
-  filterCoterie: "__all__",
-  filterFaction: "__all__",
-  filterStory: "__all__",
-  filterSire: "__all__",
-  groupBy: "__none__",
-  sortBy: "name-asc",
-};
+type ToolbarState = CharacterToolbarState;
+const defaultState = defaultCharacterToolbar;
 
 function loadToolbarState(): ToolbarState {
   try {
@@ -102,6 +84,8 @@ export default function Characters() {
 
   const { characters, loading, updateCharacter, deleteCharacter } = useCharacters();
   const { currentChronicle } = useChronicles();
+  const { user } = useAuth();
+  const savedViewsKey = user && currentChronicle ? characterViewsKey(user.id, currentChronicle.id) : null;
   const {
     factions,
     characterFactions,
@@ -347,6 +331,13 @@ export default function Characters() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search characters..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 bg-input border-border" />
           </div>
+
+          {savedViewsKey && <SavedCharacterViews
+            key={savedViewsKey}
+            storageKey={savedViewsKey}
+            snapshot={{ toolbar, searchTerm }}
+            onApply={view => { setToolbar(view.toolbar); setSearchTerm(view.searchTerm); }}
+          />}
 
           {/* Filter / Group / Sort Toolbar */}
           <div className="flex flex-col sm:hidden gap-2">
