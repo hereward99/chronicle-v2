@@ -20,7 +20,6 @@ import { useCoteries } from "@/hooks/useCoteries";
 import { usePlots } from "@/hooks/usePlots";
 import { usePlotCharacters } from "@/hooks/usePlotCharacters";
 import { CreateCharacterDialog } from "@/components/dialogs/CreateCharacterDialog";
-import { ViewCharacterDialog } from "@/components/dialogs/ViewCharacterDialog";
 import { EditCharacterDialog } from "@/components/dialogs/EditCharacterDialog";
 import { CharacterWizard } from "@/components/character/CharacterWizard";
 import { CharacterCard } from "@/components/characters/CharacterCard";
@@ -37,6 +36,7 @@ import { useSessions } from "@/hooks/useSessions";
 import { useSelection } from "@/hooks/useSelection";
 import { BulkActionBar } from "@/components/characters/BulkActionBar";
 import { CharacterTable } from "@/components/characters/CharacterTable";
+import { CharacterPreview } from "@/components/characters/CharacterPreview";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LayoutGrid, Rows3, CheckSquare } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -65,10 +65,10 @@ function saveToolbarState(state: ToolbarState) {
 export default function Characters() {
   useScrollRestore("/characters");
   const [searchTerm, setSearchTerm] = useRestorableState("characters:search", "");
-  const [viewCharacter, setViewCharacter] = useState<Character | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const [editCharacter, setEditCharacter] = useState<Character | null>(null);
   const navigate = useNavigate();
-  const goToCharacter = useCallback((c: Character) => navigate(`/characters/${c.id}`), [navigate]);
+  const previewCharacter = useCallback((c: Character) => setPreviewId(c.id), []);
   const goToCoterie = useCallback((c: Coterie) => navigate(`/coteries/${c.id}`), [navigate]);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [toolbar, setToolbar] = useState<ToolbarState>(loadToolbarState);
@@ -223,6 +223,13 @@ export default function Characters() {
     return sorted;
   }, [filteredCharacters, toolbar.sortBy]);
 
+  const previewPosition = sortedCharacters.findIndex(c => c.id === previewId);
+  const preview = activeTab === "characters" && previewPosition >= 0 ? sortedCharacters[previewPosition] : null;
+  useEffect(() => { setPreviewId(null); }, [currentChronicle?.id, user?.id, activeTab]);
+  useEffect(() => {
+    if (!loading && previewId && previewPosition < 0) setPreviewId(null);
+  }, [loading, previewId, previewPosition]);
+
   // Group
   const groupedCharacters = useMemo(() => {
     if (toolbar.groupBy === "__none__") return null;
@@ -270,8 +277,8 @@ export default function Characters() {
     (characterFactionMap.get(id) || []).map(fid => factions.find(f => f.id === fid)?.name).filter(Boolean).join(", ");
 
   const renderCard = (character: Character) => {
-    const card = <CharacterCard key={character.id} character={character} highlightQuery={highlightQuery} onView={goToCharacter} onEdit={setEditCharacter} />;
-    if (!selectMode) return card;
+    const card = <CharacterCard key={character.id} character={character} highlightQuery={highlightQuery} onView={previewCharacter} onEdit={setEditCharacter} />;
+    if (!selectMode) return <div key={character.id} className={previewId === character.id ? "rounded-lg ring-2 ring-primary" : ""}>{card}</div>;
     const checked = selection.selected.has(character.id);
     return (
       <div
@@ -579,6 +586,8 @@ export default function Characters() {
           )}
 
           {/* Character Grid */}
+          <div className={preview ? "grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]" : "min-w-0"}>
+          <div className="min-w-0">
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => <CharacterCardSkeleton key={i} />)}
@@ -589,7 +598,8 @@ export default function Characters() {
               selected={selection.selected}
               onToggle={(id, shift) => selection.toggle(id, sortedCharacters.map(c => c.id), shift)}
               onToggleAll={checked => checked ? selection.setAll(sortedCharacters.map(c => c.id)) : selection.clear()}
-              onOpen={goToCharacter}
+              onOpen={previewCharacter}
+              previewId={preview?.id}
               coterieNames={coterieNameFor}
               factionNames={factionNameFor}
             />
@@ -603,7 +613,7 @@ export default function Characters() {
                     <span className="text-sm text-muted-foreground">({chars.length})</span>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-3">
+                    <div className={`grid grid-cols-1 gap-6 mt-3 ${preview ? "md:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2" : "md:grid-cols-2 lg:grid-cols-3"}`}>
                       {chars.map(character => (
                         renderCard(character)
                       ))}
@@ -613,7 +623,7 @@ export default function Characters() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className={`grid grid-cols-1 gap-6 ${preview ? "md:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2" : "md:grid-cols-2 lg:grid-cols-3"}`}>
               {sortedCharacters.map(character => (
                 renderCard(character)
               ))}
@@ -652,6 +662,20 @@ export default function Characters() {
               />
             )
           )}
+          </div>
+          {preview && <CharacterPreview
+            character={preview}
+            position={previewPosition}
+            total={sortedCharacters.length}
+            coteries={coteries.filter(c => (characterCoterieMap.get(preview.id) || []).includes(c.id))}
+            factions={factions.filter(f => (characterFactionMap.get(preview.id) || []).includes(f.id))}
+            stories={plots.filter(p => (characterPlotMap.get(preview.id) || []).includes(p.id)).map(p => ({ id: p.id, name: p.title }))}
+            onClose={() => setPreviewId(null)}
+            onPrevious={() => setPreviewId(sortedCharacters[previewPosition - 1]?.id ?? preview.id)}
+            onNext={() => setPreviewId(sortedCharacters[previewPosition + 1]?.id ?? preview.id)}
+            onEdit={setEditCharacter}
+          />}
+          </div>
         </TabsContent>
 
         {/* ===== Coteries Tab ===== */}
@@ -810,7 +834,6 @@ export default function Characters() {
       </Tabs>
 
       {/* Dialogs */}
-      <ViewCharacterDialog character={viewCharacter} open={!!viewCharacter} onOpenChange={open => !open && setViewCharacter(null)} />
       <EditCharacterDialog character={editCharacter} open={!!editCharacter} onOpenChange={open => !open && setEditCharacter(null)} onUpdate={updateCharacter} onDelete={deleteCharacter} />
       <CharacterWizard open={wizardOpen} onOpenChange={setWizardOpen} />
       <CreateCoterieDialog open={showCreateCoterie} onOpenChange={setShowCreateCoterie} />

@@ -14,6 +14,6 @@
 - [ ] Cast picker follow-through: faction filters, last-session/summary shortcuts and batched group persistence
 - [x] Phase 4a: saved character filter views — save, apply, update/rename and delete browser-local snapshots per user/chronicle; six unit tests and isolated desktop/mobile control checks pass
 - [ ] Saved views: verify on the signed-in Characters page (blocked: no managed browser session for the shared external backend)
-- [ ] Phase 4a: two-pane character preview
+- [ ] Phase 4a: two-pane character preview — implement and check desktop/mobile interactions
 - [ ] Phase 4a: bulk removal and selected-character PDF export
 - [ ] Phase 4a: Stories and Locations two-pane views

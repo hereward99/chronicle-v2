@@ -3,6 +3,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpDown } from "lucide-react";
 import type { Character } from "@/hooks/useCharacters";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   characters: Character[];
@@ -12,11 +13,12 @@ interface Props {
   onOpen: (c: Character) => void;
   coterieNames: (id: string) => string;
   factionNames: (id: string) => string;
+  previewId?: string;
 }
 
 type Col = "name" | "clan" | "type" | "status" | "coterie" | "faction";
 
-export function CharacterTable({ characters, selected, onToggle, onToggleAll, onOpen, coterieNames, factionNames }: Props) {
+export function CharacterTable({ characters, selected, onToggle, onToggleAll, onOpen, coterieNames, factionNames, previewId }: Props) {
   const [sort, setSort] = useState<{ col: Col; dir: 1 | -1 } | null>(null);
 
   const rows = useMemo(() => {
@@ -55,12 +57,12 @@ export function CharacterTable({ characters, selected, onToggle, onToggleAll, on
         <tbody>
           {rows.map(c => {
             return (
-              <tr key={c.id} className={`border-t border-border hover:bg-secondary/40 ${selected.has(c.id) ? "bg-primary/10" : ""}`}>
+              <tr key={c.id} className={`border-t border-border hover:bg-secondary/40 ${c.id === previewId ? "bg-surface-3" : selected.has(c.id) ? "bg-primary/10" : ""}`}>
                 <td className="px-3 py-2" onClick={e => { e.preventDefault(); onToggle(c.id, e.shiftKey); }}>
                   <Checkbox aria-label={`Select ${c.name}`} checked={selected.has(c.id)} />
                 </td>
                 <td className="px-3 py-2">
-                  <button className="font-medium text-foreground hover:text-primary text-left" onClick={() => onOpen(c)}>{c.name}</button>
+                  <Button variant="link" className="h-auto p-0 font-medium text-foreground hover:text-primary text-left whitespace-normal justify-start" aria-label={`Preview ${c.name}`} aria-pressed={c.id === previewId} onClick={() => onOpen(c)}>{c.name}</Button>
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">{c.clan}</td>
                 <td className="px-3 py-2 text-muted-foreground">{c.type}</td>
