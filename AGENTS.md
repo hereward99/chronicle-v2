@@ -4,3 +4,4 @@
 - Calculate cast changes only against characters supplied by the chronicle-scoped parent, preserving memberships absent from the visible candidate list.
 - Keep named character views as browser-local snapshots scoped by authenticated user and chronicle; key the saved-view controls by that scope to prevent cross-scope state reuse without changing existing toolbar persistence.
 - Keep character preview identity in the owning list, derive its content from current filtered chronicle data, and reuse one preview body in a desktop pane or mobile sheet; this avoids stale copies and keeps bulk selection independent.
+- Keep location preview identity scoped to the owning list's chronicle, derive navigation from the filtered geographic order, and reuse one body in the desktop pane and mobile sheet; this prevents stale previews without changing detail routes or editor persistence.
