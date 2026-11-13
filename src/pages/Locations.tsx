@@ -1,10 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRestorableState, useScrollRestore } from '@/hooks/useRestorableState';
-import { useNavigate } from 'react-router-dom';
 import { EmptyState } from '@/components/onboarding/EmptyState';
 import { LocationCardSkeleton } from '@/components/skeletons/CardSkeleton';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { EntityCard, EntityCardContent, EntityCardHeaderBar, CardIconAction } from '@/components/ui/entity-card';
 import { Input } from '@/components/ui/input';
 import {
@@ -27,7 +25,7 @@ import { Plus, Search, MapPin, Eye, Pencil, Trash2, ChevronRight } from 'lucide-
 import { useLocations, Location } from '@/hooks/useLocations';
 import { CreateLocationDialog } from '@/components/dialogs/CreateLocationDialog';
 import { EditLocationDialog } from '@/components/dialogs/EditLocationDialog';
-import { ViewLocationDialog } from '@/components/dialogs/ViewLocationDialog';
+import { LocationPreview } from '@/components/locations/LocationPreview';
 import { MentionText } from '@/components/mentions/MentionText';
 import { useSearchHighlight } from '@/hooks/useSearchHighlight';
 import { TextHighlight } from '@/components/ui/text-highlight';
@@ -45,17 +43,19 @@ function LocationCard({
   onView,
   onEdit,
   onDelete,
+  selected,
 }: {
   location: Location;
   highlightQuery: string;
   onView: (l: Location) => void;
   onEdit: (l: Location) => void;
   onDelete: (l: Location) => void;
+  selected: boolean;
 }) {
   return (
     <EntityCard
       entityId={location.id}
-      className="hover:border-primary/50 cursor-pointer group"
+      className={`hover:border-primary/50 cursor-pointer group ${selected ? 'ring-2 ring-primary' : ''}`}
       onClick={() => onView(location)}
     >
       <EntityCardHeaderBar
@@ -69,7 +69,7 @@ function LocationCard({
         actions={
           <>
             <CardIconAction
-              label="View location"
+              label={`Preview ${location.name}`}
               onClick={(e) => { e.stopPropagation(); onView(location); }}
             >
               <Eye className="h-4 w-4" />
@@ -117,13 +117,12 @@ function LocationCard({
 
 export default function Locations() {
   useScrollRestore("/locations");
-  const { locations, isLoading, deleteLocation } = useLocations();
+  const { locations, isLoading, deleteLocation, chronicleId } = useLocations();
   const [searchQuery, setSearchQuery] = useRestorableState('locations:search', '');
   const { searchQuery: highlightQuery } = useSearchHighlight();
   const [createOpen, setCreateOpen] = useState(false);
   const [editLocation, setEditLocation] = useState<Location | null>(null);
-  const [viewLocation, setViewLocation] = useState<Location | null>(null);
-  const navigate = useNavigate();
+  const [previewIdentity, setPreviewIdentity] = useState<{ id: string; chronicleId: typeof chronicleId } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Location | null>(null);
 
   const filteredLocations = locations.filter(loc =>
@@ -158,9 +157,25 @@ export default function Locations() {
     setDeleteTarget(null);
   };
 
+  const orderedLocations = hasGroups ? sortedCountries.flatMap(country =>
+    Object.keys(grouped[country]).sort((a, b) => {
+      if (a === 'Other') return 1;
+      if (b === 'Other') return -1;
+      return a.localeCompare(b);
+    }).flatMap(city => grouped[country][city])
+  ) : filteredLocations;
+  const previewPosition = previewIdentity?.chronicleId === chronicleId
+    ? orderedLocations.findIndex(location => location.id === previewIdentity?.id) : -1;
+  const preview = previewPosition >= 0 ? orderedLocations[previewPosition] : null;
+  useEffect(() => {
+    if (!isLoading && previewIdentity && previewPosition < 0) setPreviewIdentity(null);
+  }, [isLoading, previewIdentity, previewPosition]);
+  const showPreview = (location: Location) => setPreviewIdentity({ id: location.id, chronicleId });
+  const gridColumns = preview ? 'md:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2' : 'md:grid-cols-2 lg:grid-cols-3';
+
   const cardProps = {
     highlightQuery,
-    onView: (l: Location) => navigate(`/locations/${l.id}`),
+    onView: showPreview,
     onEdit: setEditLocation,
     onDelete: setDeleteTarget,
   };
@@ -191,6 +206,8 @@ export default function Locations() {
           />
         </div>
 
+        <div className={preview ? 'grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]' : 'min-w-0'}>
+        <div className="min-w-0">
         {isLoading ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map(i => <LocationCardSkeleton key={i} />)}
@@ -218,9 +235,9 @@ export default function Locations() {
           )
         ) : !hasGroups ? (
           // No grouping data — flat grid like before
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className={`grid gap-4 ${gridColumns}`}>
             {filteredLocations.map(location => (
-              <LocationCard key={location.id} location={location} {...cardProps} />
+              <LocationCard key={location.id} location={location} selected={preview?.id === location.id} {...cardProps} />
             ))}
           </div>
         ) : (
@@ -258,18 +275,18 @@ export default function Locations() {
                                 <span className="text-xs text-muted-foreground">({locs.length})</span>
                               </CollapsibleTrigger>
                               <CollapsibleContent>
-                                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 mt-2 pl-2">
+                                <div className={`grid gap-3 mt-2 pl-2 ${gridColumns}`}>
                                   {locs.map(location => (
-                                    <LocationCard key={location.id} location={location} {...cardProps} />
+                                    <LocationCard key={location.id} location={location} selected={preview?.id === location.id} {...cardProps} />
                                   ))}
                                 </div>
                               </CollapsibleContent>
                             </Collapsible>
                           )}
                           {!showCityHeader && (
-                            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                            <div className={`grid gap-3 ${gridColumns}`}>
                               {locs.map(location => (
-                                <LocationCard key={location.id} location={location} {...cardProps} />
+                                <LocationCard key={location.id} location={location} selected={preview?.id === location.id} {...cardProps} />
                               ))}
                             </div>
                           )}
@@ -282,11 +299,17 @@ export default function Locations() {
             })}
           </div>
         )}
+        </div>
+        {preview && <LocationPreview location={preview} position={previewPosition} total={orderedLocations.length}
+          onClose={() => setPreviewIdentity(null)}
+          onPrevious={() => showPreview(orderedLocations[previewPosition - 1] ?? preview)}
+          onNext={() => showPreview(orderedLocations[previewPosition + 1] ?? preview)}
+          onEdit={setEditLocation} />}
+        </div>
       </div>
 
       <CreateLocationDialog open={createOpen} onOpenChange={setCreateOpen} />
       <EditLocationDialog location={editLocation} open={!!editLocation} onOpenChange={(open) => !open && setEditLocation(null)} />
-      <ViewLocationDialog location={viewLocation} open={!!viewLocation} onOpenChange={(open) => !open && setViewLocation(null)} />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
