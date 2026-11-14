@@ -17,5 +17,6 @@
 - [x] Phase 4a: two-pane character preview — desktop pane and mobile sheet; isolated browser checks pass for navigation, independent selection, edit callback, links and offline editing guard at desktop and 375 px
 - [ ] Character preview: verify with real chronicle data on the signed-in Characters page (blocked: shared external backend has no available authenticated test session; live browser redirects to /auth)
 - [ ] Phase 4a: bulk removal and selected-character PDF export
-- [ ] Phase 4a: Locations two-pane preview — implementation and desktop/mobile checks
+- [x] Phase 4a: Locations two-pane preview — desktop pane/mobile sheet, geographic-order navigation, filtered preview clearing, full-page/map/mention links and edit callback; isolated page checks pass at desktop, 1044 px and 375 px
+- [ ] Location preview: verify with real chronicle data (blocked: live browser redirects to sign-in; no authenticated session is available for the shared external backend)
 - [ ] Phase 4a: Stories two-pane views
