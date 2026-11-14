@@ -564,12 +564,12 @@ export async function exportCharacterToPDF(character: {
   use_dice_pools?: boolean | null;
   skip_attributes?: boolean | null;
   dice_pools?: DicePoolConfig | null;
-}, theme: PdfTheme = 'dark') {
+}, theme: PdfTheme = 'dark', into?: jsPDF, skipSave = false): Promise<jsPDF> {
   setPdfTheme(theme);
-  const pdf = createThemedPDF({
-    title: character.name,
-    subtitle: `${character.clan} • ${character.type}`
-  });
+  const headerOpts = { title: character.name, subtitle: `${character.clan} • ${character.type}` };
+  let pdf: jsPDF;
+  if (into) { pdf = into; pdf.addPage(); paintPageHeader(pdf, headerOpts); }
+  else pdf = createThemedPDF(headerOpts);
   
   const pageWidth = pdf.internal.pageSize.getWidth();
   let y = 35;
@@ -1061,7 +1061,23 @@ export async function exportCharacterToPDF(character: {
     y = addText(pdf, character.notes, y + 4, { fontSize: 9 });
   }
   
-  pdf.save(`${character.name.replace(/[^a-z0-9]/gi, '_')}_character.pdf`);
+  if (!into && !skipSave) pdf.save(`${character.name.replace(/[^a-z0-9]/gi, '_')}_character.pdf`);
+  return pdf;
+}
+
+/** Export several characters into one PDF, one sheet after another, in the given order. */
+export async function exportCharactersToPDF(
+  characters: Parameters<typeof exportCharacterToPDF>[0][],
+  theme: PdfTheme = 'dark',
+  fileName = 'characters.pdf',
+) {
+  if (!characters.length) return;
+  let pdf: jsPDF | undefined;
+  for (const c of characters) {
+    if (!pdf) { pdf = await exportCharacterToPDF(c, theme, undefined, true); continue; }
+    await exportCharacterToPDF(c, theme, pdf);
+  }
+  pdf?.save(fileName);
 }
 
 // Export a Session Prep Checklist to PDF
