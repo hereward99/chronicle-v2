@@ -564,7 +564,7 @@ export async function exportCharacterToPDF(character: {
   use_dice_pools?: boolean | null;
   skip_attributes?: boolean | null;
   dice_pools?: DicePoolConfig | null;
-}, theme: PdfTheme = 'dark', into?: jsPDF): Promise<jsPDF> {
+}, theme: PdfTheme = 'dark', into?: jsPDF, skipSave = false): Promise<jsPDF> {
   setPdfTheme(theme);
   const headerOpts = { title: character.name, subtitle: `${character.clan} • ${character.type}` };
   let pdf: jsPDF;
@@ -1061,7 +1061,7 @@ export async function exportCharacterToPDF(character: {
     y = addText(pdf, character.notes, y + 4, { fontSize: 9 });
   }
   
-  if (!into) pdf.save(`${character.name.replace(/[^a-z0-9]/gi, '_')}_character.pdf`);
+  if (!into && !skipSave) pdf.save(`${character.name.replace(/[^a-z0-9]/gi, '_')}_character.pdf`);
   return pdf;
 }
 
@@ -1074,7 +1074,7 @@ export async function exportCharactersToPDF(
   if (!characters.length) return;
   let pdf: jsPDF | undefined;
   for (const c of characters) {
-    if (!pdf) { pdf = await exportCharacterToPDF(c, theme, undefined); continue; }
+    if (!pdf) { pdf = await exportCharacterToPDF(c, theme, undefined, true); continue; }
     await exportCharacterToPDF(c, theme, pdf);
   }
   pdf?.save(fileName);
