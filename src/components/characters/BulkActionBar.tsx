@@ -6,9 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarDays, BookOpen, UsersRound, Flag, Tag, X } from "lucide-react";
+import { CalendarDays, BookOpen, UsersRound, Flag, Tag, X, UserMinus } from "lucide-react";
+import { PdfExportButton } from "@/components/PdfExportButton";
+import type { PdfTheme } from "@/lib/pdfExport";
 
 type Target = "session" | "story" | "coterie" | "faction" | "status";
+type LinkTarget = Exclude<Target, "status">;
 
 interface Option { id: string; label: string }
 
@@ -21,6 +24,7 @@ interface Props {
   factions: Option[];
   statuses: string[];
   onSetStatus: (ids: string[], status: string) => Promise<void>;
+  onExport: (ids: string[], theme: PdfTheme) => Promise<void>;
 }
 
 const CONFIG: Record<Exclude<Target, "status">, { table: "session_characters" | "plot_characters" | "coterie_members" | "character_factions"; fk: string; label: string; role: boolean }> = {
@@ -32,8 +36,11 @@ const CONFIG: Record<Exclude<Target, "status">, { table: "session_characters" | 
 
 const INVALIDATE = ["session_characters", "session_characters_by_character", "plot_characters", "coterie_members", "characterFactions", "characters"];
 
-export function BulkActionBar({ selectedIds, onClear, sessions, stories, coteries, factions, statuses, onSetStatus }: Props) {
+export function BulkActionBar({ selectedIds, onClear, sessions, stories, coteries, factions, statuses, onSetStatus, onExport }: Props) {
   const [target, setTarget] = useState<Target | null>(null);
+  const [mode, setMode] = useState<"add" | "remove">("add");
+  const [removeKind, setRemoveKind] = useState<LinkTarget>("session");
+  const [exporting, setExporting] = useState(false);
   const [choice, setChoice] = useState("__none__");
   const [role, setRole] = useState("");
   const [busy, setBusy] = useState(false);
@@ -41,8 +48,9 @@ export function BulkActionBar({ selectedIds, onClear, sessions, stories, coterie
   const { toast } = useToast();
   const isOnline = typeof navigator === "undefined" ? true : navigator.onLine;
 
+  const effective: Target | null = mode === "remove" && target ? removeKind : target;
   const options = useMemo(() => {
-    switch (target) {
+    switch (effective) {
       case "session": return sessions;
       case "story": return stories;
       case "coterie": return coteries;
@@ -50,16 +58,53 @@ export function BulkActionBar({ selectedIds, onClear, sessions, stories, coterie
       case "status": return statuses.map(s => ({ id: s, label: s }));
       default: return [];
     }
-  }, [target, sessions, stories, coteries, factions, statuses]);
+  }, [effective, sessions, stories, coteries, factions, statuses]);
 
-  const open = (t: Target) => { setTarget(t); setChoice("__none__"); setRole(""); };
+  const open = (t: Target) => { setMode("add"); setTarget(t); setChoice("__none__"); setRole(""); };
   const refresh = () => INVALIDATE.forEach(k => qc.invalidateQueries({ queryKey: [k] }));
+
+  const openRemove = () => { setMode("remove"); setRemoveKind("session"); setTarget("session"); setChoice("__none__"); };
+
+  const remove = async () => {
+    const cfg = CONFIG[removeKind];
+    const { data, error } = await supabase.from(cfg.table).select("*")
+      .eq(cfg.fk as never, choice as never).in("character_id", selectedIds);
+    if (error) throw error;
+    const rows = (data as Record<string, unknown>[] | null) ?? [];
+    const name = options.find(o => o.id === choice)?.label ?? cfg.label;
+    if (!rows.length) {
+      toast({ title: "Nothing to remove", description: `None of the selected characters are in ${name}.` });
+      return;
+    }
+    const { error: delErr } = await supabase.from(cfg.table).delete().in("id", rows.map(r => r.id as string));
+    if (delErr) throw delErr;
+    const missing = selectedIds.length - rows.length;
+    toast({
+      title: `Removed ${rows.length} from ${name}`,
+      description: missing ? `${missing} weren't in it.` : undefined,
+      action: (
+        <Button variant="outline" size="sm" onClick={async () => {
+          await supabase.from(cfg.table).insert(rows as never);
+          refresh();
+        }}>Undo</Button>
+      ) as never,
+    });
+  };
+
+  const doExport = async (theme: PdfTheme) => {
+    setExporting(true);
+    try { await onExport(selectedIds, theme); }
+    catch (e) { toast({ title: "Couldn't export", description: e instanceof Error ? e.message : "Please try again.", variant: "destructive" }); }
+    finally { setExporting(false); }
+  };
 
   const apply = async () => {
     if (!target || choice === "__none__") return;
     setBusy(true);
     try {
-      if (target === "status") {
+      if (mode === "remove") {
+        await remove();
+      } else if (target === "status") {
         await onSetStatus(selectedIds, choice);
         toast({ title: `Status set to ${choice}`, description: `${selectedIds.length} characters updated.` });
       } else {
@@ -115,16 +160,29 @@ export function BulkActionBar({ selectedIds, onClear, sessions, stories, coterie
         <Button size="sm" variant="secondary" disabled={!isOnline} onClick={() => open("coterie")}><UsersRound className="h-4 w-4 mr-1" />Coterie</Button>
         <Button size="sm" variant="secondary" disabled={!isOnline} onClick={() => open("faction")}><Flag className="h-4 w-4 mr-1" />Faction</Button>
         <Button size="sm" variant="secondary" disabled={!isOnline} onClick={() => open("status")}><Tag className="h-4 w-4 mr-1" />Status</Button>
+        <Button size="sm" variant="secondary" disabled={!isOnline} onClick={openRemove}><UserMinus className="h-4 w-4 mr-1" />Remove from…</Button>
+        <PdfExportButton onExport={doExport} label={exporting ? "Exporting…" : "Export"} variant="outline" title="Export selected as PDF" />
         <Button size="icon" variant="ghost" aria-label="Clear selection" onClick={onClear}><X className="h-4 w-4" /></Button>
       </div>
 
       <Dialog open={target !== null} onOpenChange={o => !o && setTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{target === "status" ? "Set status" : `Add to ${target ? CONFIG[target as Exclude<Target, "status">].label : ""}`}</DialogTitle>
+            <DialogTitle>{mode === "remove" ? "Remove from…" : target === "status" ? "Set status" : `Add to ${target ? CONFIG[target as LinkTarget].label : ""}`}</DialogTitle>
             <DialogDescription>{selectedIds.length} characters selected.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {mode === "remove" && (
+              <Select value={removeKind} onValueChange={v => { setRemoveKind(v as LinkTarget); setChoice("__none__"); }}>
+                <SelectTrigger aria-label="Remove from what"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="session">A session</SelectItem>
+                  <SelectItem value="story">A story</SelectItem>
+                  <SelectItem value="coterie">A coterie</SelectItem>
+                  <SelectItem value="faction">A faction</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
             <Select value={choice} onValueChange={setChoice}>
               <SelectTrigger><SelectValue placeholder="Choose…" /></SelectTrigger>
               <SelectContent>
@@ -132,13 +190,13 @@ export function BulkActionBar({ selectedIds, onClear, sessions, stories, coterie
                 {options.map(o => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
-            {(target === "coterie" || target === "faction") && (
+            {mode === "add" && (target === "coterie" || target === "faction") && (
               <Input placeholder="Role (optional)" value={role} onChange={e => setRole(e.target.value)} maxLength={80} />
             )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setTarget(null)}>Cancel</Button>
-            <Button onClick={apply} disabled={busy || choice === "__none__" || !isOnline}>{busy ? "Applying…" : "Apply"}</Button>
+            <Button onClick={apply} variant={mode === "remove" ? "destructive" : "default"} disabled={busy || choice === "__none__" || !isOnline}>{busy ? "Applying…" : mode === "remove" ? "Remove" : "Apply"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

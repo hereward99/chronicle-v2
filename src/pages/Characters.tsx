@@ -1,3 +1,4 @@
+import { normalizeCharacter } from "@/lib/v5/normalizeCharacter";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { EmptyState } from "@/components/onboarding/EmptyState";
@@ -874,6 +875,12 @@ export default function Characters() {
         factions={factions.map(f => ({ id: f.id, label: f.name }))}
         statuses={statusOptions}
         onSetStatus={bulkSetStatus}
+        onExport={async (ids, theme) => {
+          const set = new Set(ids);
+          const list = sortedCharacters.filter(c => set.has(c.id)).map(c => normalizeCharacter(c));
+          const { exportCharactersToPDF } = await import("@/lib/pdfExport");
+          await exportCharactersToPDF(list as never, theme, `characters_${list.length}.pdf`);
+        }}
       />
     </div>
   );
